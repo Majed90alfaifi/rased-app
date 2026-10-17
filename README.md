@@ -5,7 +5,7 @@
 ## المكونات
 
 - `main.py`: خادم Flask يستقبل القراءات على `POST /reading` ويخزنها في SQLite (`rased.db`)، ويحلل آخر القراءات كل دقيقتين ويرسل النتيجة إلى تيليجرام.
-- `demo_swnsor.py`: محاكاة حساسات ترسل قراءات تجريبية إلى الخادم كل دقيقة.
+- `demo_sensor.py`: محاكاة حساسات ترسل قراءات تجريبية إلى الخادم كل دقيقة.
 
 ## التشغيل
 
@@ -17,5 +17,5 @@ pip install -r requirements.txt
 
 ```bash
 python main.py
-python demo_swnsor.py   # في نافذة أخرى
+python demo_sensor.py   # في نافذة أخرى
 ```
