@@ -1,80 +1,92 @@
-<div dir="rtl">
+# RAASED
 
-# 🤖 راصد (RAASED)
+**An AI agent for detecting sensor faults in closed aquaculture systems.**
 
-**وكيل ذكي لاكتشاف أعطال الحساسات في أنظمة الاستزراع السمكي المغلقة.**
-
-يستقبل راصد قراءات الحساسات من الأحواض، ويحللها بالذكاء الاصطناعي (Google Gemini)، ثم يرسل تنبيهًا واضحًا إلى المسؤول عبر تيليجرام.
+RAASED (Arabic: راصد, "the observer") collects water-quality readings from fish ponds, analyzes them with Google Gemini to spot faulty sensors and abnormal conditions, and sends a concise alert with recommendations to the operator on Telegram.
 
 ---
 
-## ✨ المميزات
+## Features
 
-- 📥 استقبال قراءات الحساسات عبر واجهة API بسيطة.
-- 🗄️ حفظ القراءات في قاعدة بيانات SQLite.
-- 🔍 تحليل اتجاه القراءات واكتشاف القيم الشاذة والحساسات المعطلة.
-- ⚠️ تقييم مستوى الخطر: منخفض / متوسط / مرتفع / حرج.
-- 📲 إرسال التحليل والتوصيات إلى تيليجرام تلقائيًا كل دقيقتين.
+- **Reading ingestion:** a lightweight REST endpoint accepts sensor readings.
+- **Persistent storage:** every reading is stored in a local SQLite database.
+- **Fault detection:** trend analysis flags stuck sensors, implausible jumps, and outliers.
+- **Correlation analysis:** related indicators are evaluated together, for example rising ammonia alongside falling dissolved oxygen.
+- **Risk assessment:** each analysis is rated *Low*, *Medium*, *High*, or *Critical*, with a short-term forecast.
+- **Automated alerts:** findings and recommended actions are sent to Telegram every two minutes.
 
-## 📊 القراءات المدعومة
+## Monitored Parameters
 
-| القراءة | الحقل |
-|---|---|
-| درجة الحرارة | `temperature` |
-| درجة الحموضة | `ph` |
-| الأمونيا | `ammonia` |
-| مستوى الماء | `water_level` |
-| الأكسجين المذاب | `dissolved_oxygen` |
+| Parameter         | Field              |
+|-------------------|--------------------|
+| Temperature       | `temperature`      |
+| pH                | `ph`               |
+| Ammonia           | `ammonia`          |
+| Water level       | `water_level`      |
+| Dissolved oxygen  | `dissolved_oxygen` |
 
-## ⚙️ كيف يعمل؟
+## Architecture
 
 ```
-الحساسات ──► خادم راصد (Flask) ──► قاعدة البيانات
-                                         │
-                       تيليجرام ◄── Gemini (التحليل)
+Sensors ──► RAASED server (Flask) ──► SQLite database
+                                            │
+                Telegram ◄── Gemini analysis ┘
 ```
 
-## 🚀 التشغيل
+1. Sensors (or the included simulator) `POST` readings to the Flask server.
+2. Readings are written to `rased.db`.
+3. A background worker runs every 120 seconds. It loads the latest readings for the pond and asks Gemini for a structured assessment.
+4. The assessment is delivered to the configured Telegram chat.
 
-### 1. تثبيت المتطلبات
+## Getting Started
 
-يتطلب Python 3.9 أو أحدث.
+### Prerequisites
+
+- Python 3.9 or later
+- A [Google Gemini API key](https://aistudio.google.com/apikey)
+- A Telegram bot token (from [@BotFather](https://t.me/BotFather)) and the target chat ID
+
+### 1. Install dependencies
 
 ```bash
 pip install -r requirements.txt
 ```
 
-### 2. إعداد المفاتيح
+### 2. Configure credentials
 
-عدّل القيم التالية في أعلى ملف `main.py`:
+Set the following constants at the top of `main.py`:
 
-| المتغير | الوصف |
-|---|---|
-| `GEMINI_API_KEY` | مفتاح Google Gemini API |
-| `TELEGRAM_BOT_TOKEN` | توكن بوت تيليجرام |
-| `TELEGRAM_CHAT_ID` | معرّف المحادثة التي تصلها التنبيهات |
+| Variable             | Description                              |
+|----------------------|------------------------------------------|
+| `GEMINI_API_KEY`     | Google Gemini API key                    |
+| `TELEGRAM_BOT_TOKEN` | Telegram bot token                       |
+| `TELEGRAM_CHAT_ID`   | Chat ID that receives the alerts         |
 
-> ⚠️ لا ترفع مفاتيحك الحقيقية إلى GitHub.
+> **Security note:** never commit real credentials to version control.
 
-### 3. تشغيل الخادم
+### 3. Run the server
 
 ```bash
 python main.py
 ```
 
-يعمل الخادم على المنفذ `5000`.
+The server listens on port `5000`. It creates the database automatically on first run.
 
-### 4. تجربة النظام (اختياري)
+### 4. Run the sensor simulator (optional)
 
-في نافذة أخرى، شغّل محاكي الحساسات لإرسال قراءات تجريبية كل دقيقة:
+In a separate terminal, start the simulator. It sends one reading per minute, in a scenario where the pond's water quality gets steadily worse:
 
 ```bash
 python demo_sensor.py
 ```
 
-## 🔌 واجهة API
+## API Reference
 
-**إرسال قراءة جديدة:** `POST /reading`
+### `POST /reading`
+
+Submits a new sensor reading.
+
+**Request body**
 
 ```json
 {
@@ -87,7 +99,22 @@ python demo_sensor.py
 }
 ```
 
-## 📲 مثال على رسالة التنبيه
+All fields are required.
+
+**Response**
+
+```json
+{
+  "status": "saved",
+  "data": { "...": "the submitted reading" }
+}
+```
+
+## Sample Alert
+
+Alerts are generated in Arabic. A typical message:
+
+<div dir="rtl">
 
 ```
 🤖 راصد - الحوض 1
@@ -105,13 +132,37 @@ python demo_sensor.py
 فحص حساس الحرارة وتشغيل التهوية فورًا.
 ```
 
-## 📁 هيكل المشروع
+</div>
+
+**English translation**
+
+```
+🤖 RAASED - Pond 1
+
+📊 Overall trend:
+Steady rise in ammonia with declining dissolved oxygen.
+
+⚠️ Risk level:
+High
+
+🔧 Sensor status:
+A sudden jump in temperature may indicate a faulty sensor.
+
+✅ Recommendation:
+Inspect the temperature sensor and start aeration immediately.
+```
+
+## Project Structure
 
 ```
 rased_app/
-├── main.py            # الخادم والتحليل وإرسال التنبيهات
-├── demo_sensor.py     # محاكي الحساسات للتجربة
-└── requirements.txt   # المكتبات المطلوبة
+├── main.py            # API server, analysis worker, and Telegram alerts
+├── demo_sensor.py     # Sensor simulator for testing
+└── requirements.txt   # Python dependencies
 ```
 
-</div>
+## Current Limitations
+
+- The analysis worker monitors pond `1` only.
+- An analysis runs once at least 3 readings are stored, and it covers the 8 most recent readings.
+- Credentials are hard-coded in `main.py` rather than loaded from environment variables.
